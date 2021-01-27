@@ -23,11 +23,10 @@ def update_record(minutes):
     record_json[thisweek_start][today.strftime("%a")] += minutes
     Path(record_path).write_text(json.dumps(record_json))
 
+    global thisweek_summary, last4week_summary
     thisweek_summary = [round(y/work_min, 1) for x, y in record_json[thisweek_start].items()]
-    stdscr.addstr(6, 0, str(thisweek_summary) + " Total: " + str(sum(thisweek_summary)), curses.A_BOLD)
     wk = lambda x: record_json[str(today - timedelta(days=(today.weekday() + x)))].values() if str(today - timedelta(days=(today.weekday() + x))) in record_json else [0, 0, 0, 0, 0, 0, 0]
-    last_fourweek = [round(sum(list(item))/4/work_min,1) for item in zip(wk(7), wk(14), wk(21), wk(28))]
-    stdscr.addstr(8, 0, str(last_fourweek) + " Total: " + str(sum(last_fourweek)), curses.A_BOLD)
+    last4week_summary = [round(sum(list(item))/4/work_min,1) for item in zip(wk(7), wk(14), wk(21), wk(28))]
 
 def get_session_info(period_num):
     # one session has 9 period: w > b > w > b > w > b > w > b > lb
@@ -69,6 +68,17 @@ def pomodoro_session(remaining_sec, period_num):
             stdscr.addstr(0, 0, "Current Session: " + get_session_info(period_num)[0] + " - Stop!", curses.A_BOLD)
             return get_session_info(period_num + 1)[1], period_num + 1, True
 
+def render_alltext():
+    stdscr.addstr(0, 0, "Current Session: " + get_session_info(period_num)[0], curses.A_BOLD)
+    stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(remaining_sec), curses.A_BOLD)
+    stdscr.addstr(2, 0, "Press s to Start, q to Quit", curses.A_BOLD)
+    stdscr.addstr(3, 0, "---------------------------------", curses.A_BOLD)
+    stdscr.addstr(4, 0, "# Sessions from Monday (" + str(work_min) + " Minutes Each)", curses.A_BOLD)
+    stdscr.addstr(5, 0, "This Week", curses.A_BOLD)
+    stdscr.addstr(6, 0, str(thisweek_summary) + " Total: " + str(sum(thisweek_summary)), curses.A_BOLD)
+    stdscr.addstr(7, 0, "Last Four Weeks (avg)", curses.A_BOLD)
+    stdscr.addstr(8, 0, str(last4week_summary) + " Total: " + str(sum(last4week_summary)), curses.A_BOLD)
+
 # declare paths
 folder_path = os.path.expanduser("~") + "/.local/share/lazyman-pomodoro/"
 record_path = folder_path + "record.json"
@@ -86,7 +96,7 @@ record_content = Path(record_path).read_text()
 try:
     record_json = json.loads(record_content)
 except ValueError:
-    print(record_path + " is not a valid JSON")
+    print(record_path + " is not a valid JSON. At least try to make it {}.")
     sys.exit()
 # read config
 config = configparser.ConfigParser()
@@ -104,19 +114,14 @@ curses.cbreak()
 stdscr.keypad(1)
 curses.curs_set(0)
 
-stdscr.addstr(3, 0, "---------------------------------", curses.A_BOLD)
-stdscr.addstr(4, 0, "# Sessions from Monday (" + str(work_min) + " Minutes Each)", curses.A_BOLD)
-stdscr.addstr(5, 0, "This Week", curses.A_BOLD)
-stdscr.addstr(7, 0, "Last Four Weeks (avg)", curses.A_BOLD)
+thisweek_summary = []
+last4week_summary = []
+period_num = 1
+remaining_sec = work_min * 60
 try:
-    remaining_sec = work_min * 60
-    session_num = 0
-    period_num = 1
     update_record(0)
     while 1:
-        stdscr.addstr(0, 0, "Current Session: " + get_session_info(period_num)[0], curses.A_BOLD)
-        stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(remaining_sec), curses.A_BOLD)
-        stdscr.addstr(2, 0, "Press s to Start, q to Quit", curses.A_BOLD)
+        render_alltext()
         if not skip_prompt:
             ans = stdscr.getch()
         if ans == ord('s'):
@@ -124,6 +129,8 @@ try:
                 remaining_sec, period_num, skip_prompt = pomodoro_session(remaining_sec, period_num)
         elif ans == ord('q'):
             break
+        elif ans == 410: # return value from zenity
+            pass
         else:
             stdscr.addstr(0, 0, "Current Session: " + get_session_info(period_num)[0] + " - Invalid Input!", curses.A_BOLD)
 except:
