@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from datetime import datetime, timedelta
 from pathlib import Path
+from shutil import which
 import configparser
 import curses
 import json
@@ -56,7 +57,7 @@ def pomodoro_session(remaining_sec, period_num):
             remaining_sec -= 1
         if is_working:
             update_record(work_min)
-        os.system(f"echo . | $(which xnotify) -g 3840x2160 -s 2")
+        # os.system(f"echo . | $(which xnotify) -g 3840x2160 -s 2")
         will_skip_prompt = not os.system(f"zenity --question --ellipsize --title='Session Ends!' --text='Do you want to start " + ("Break" if is_working else "Work") + " session now\?' 2>/dev/null")
         return get_session_info(period_num + 1)[1], period_num + 1, will_skip_prompt
     except KeyboardInterrupt:
@@ -69,7 +70,7 @@ def pomodoro_session(remaining_sec, period_num):
             return get_session_info(period_num + 1)[1], period_num + 1, True
 
 def render_alltext():
-    stdscr.addstr(0, 0, "Current Session: " + get_session_info(period_num)[0], curses.A_BOLD)
+    stdscr.addstr(0, 0, "Current Session: " + get_session_info(period_num)[0] + "                 ", curses.A_BOLD)
     stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(remaining_sec), curses.A_BOLD)
     stdscr.addstr(2, 0, "Press s to Start, q to Quit", curses.A_BOLD)
     stdscr.addstr(3, 0, "---------------------------------", curses.A_BOLD)
@@ -78,6 +79,11 @@ def render_alltext():
     stdscr.addstr(6, 0, str(thisweek_summary) + " Total: " + str(sum(thisweek_summary)), curses.A_BOLD)
     stdscr.addstr(7, 0, "Last Four Weeks (avg)", curses.A_BOLD)
     stdscr.addstr(8, 0, str(last4week_summary) + " Total: " + str(sum(last4week_summary)), curses.A_BOLD)
+
+# check prerequisites
+if which("zenity") is None:
+    print("Zenity is not installed. exiting... ")
+    sys.exit()
 
 # declare paths
 folder_path = os.path.expanduser("~") + "/.local/share/lazyman-pomodoro/"

@@ -8,8 +8,9 @@ I need a very simple pomodoro clock without any arguments to remember, yet it mu
 - Linux
 - Python3
 - Zenity
-- [xnotify](https://github.com/phillbush/xnotify). I use together with Zenity since Zenity doesn't pop up to current workspace in dwm window manager. You may feel free to remove one line of code with xnotify if you like. It doesn't affect any functionalities.
-- It may be a good idea to add text-to-speech packages like festival if you like.
+- Recommended
+	- [xnotify](https://github.com/phillbush/xnotify). I use together with Zenity since Zenity doesn't pop up to current workspace in my dwm window manager. Feel free to uncommented the line in the script with xnotify.
+	- Sound or text-to-speech packages for stronger notification.
 
 ## How to use
 1. It's just one file. Simple to use.
