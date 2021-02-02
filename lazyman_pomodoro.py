@@ -51,18 +51,21 @@ def sec_to_hhmmss(sec):
     hour, minute = divmod(minute, 60)
     return str(hour).zfill(2) + ":" + str(minute).zfill(2) + ":" + str(second).zfill(2)
 
-def start_session(stdscr, sec_remaining, session):
+def start_session(stdscr, sec_remaining, session, cache):
     '''Start a pomodoro session.
     return sec_left, session_num, skip_prompt, will_update_record'''
+    # height, width = stdscr.getmaxyx()
     try:
         is_working = bool(get_session_info(session)[1] == WORK_MIN * 60)
         stdscr.refresh()
-        stdscr.addstr(0, 0, "Current Session: " + get_session_info(session)[0] + \
-                "                 ", curses.A_BOLD)
-        stdscr.addstr(2, 0, "CTRL + C to " + ("Pause" if is_working else "Skip") + \
-                "           ", curses.A_BOLD)
         while sec_remaining > 0:
-            stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(sec_remaining), curses.A_BOLD)
+            if sec_remaining % 5 == 0: # refresh every 5 seconds
+                stdscr.clear()
+                render_alltext(stdscr, *cache)
+            stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(sec_remaining) + \
+                    '                ', curses.A_BOLD)
+            stdscr.addstr(2, 0, "CTRL + C to " + ("Pause" if is_working else "Skip") + \
+                    "           ", curses.A_BOLD)
             stdscr.refresh()
             time.sleep(1)
             sec_remaining -= 1
@@ -74,36 +77,39 @@ def start_session(stdscr, sec_remaining, session):
     except KeyboardInterrupt:
         # save progress if working else skip
         if session % 9 in [1, 3, 5, 7]:
-            stdscr.addstr(0, 0, "Current Session: " + get_session_info(session)[0] + \
-                    " - Pause!", curses.A_BOLD)
+            stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(sec_remaining) + \
+                    ' (Pause)', curses.A_BOLD)
             return sec_remaining, session, False, False
-        stdscr.addstr(0, 0, "Current Session: " + get_session_info(session)[0] + \
-                " - Stop!", curses.A_BOLD)
         return get_session_info(session + 1)[1], session + 1, True, False
+
+def return_progress(session):
+    '''Return progress string with marker.'''
+    marker = "(*)"
+    progress = "w - b - w - b - w - b - w - b - lb"
+    marker_index = 4 * (session - 1) + 1 if session % 9 != 0 else len(progress)
+    return progress[:marker_index] + marker + progress[marker_index:]
 
 def render_alltext(stdscr, session_len, remaining, session, stat):
     '''Render everyting onto the screen.'''
-    stdscr.addstr(0, 0, "Current Session: " + get_session_info(session)[0] + \
-            "                 ", curses.A_BOLD)
+    stdscr.addstr(0, 0, return_progress(session), curses.A_BOLD)
     stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(remaining), curses.A_BOLD)
     stdscr.addstr(2, 0, "Press s to Start, q to Quit", curses.A_BOLD)
-    stdscr.addstr(3, 0, "--------------------------------", curses.A_BOLD)
-    stdscr.addstr(4, 0, "# Sessions (Mon-Sun, " + str(session_len) + " Mins Each)", curses.A_BOLD)
-    stdscr.addstr(5, 0, "This Week", curses.A_BOLD)
-    stdscr.addstr(6, 0, str(stat[0]) + " Total: " + str(sum(stat[0])), curses.A_BOLD)
-    stdscr.addstr(7, 0, "Last Four Weeks (avg)", curses.A_BOLD)
-    stdscr.addstr(8, 0, str(stat[1]) + " Total: " + str(sum(stat[1])), curses.A_BOLD)
+    stdscr.addstr(3, 0, "# Sessions (Mon-Sun, " + str(session_len) + " Mins Each)", curses.A_BOLD)
+    stdscr.addstr(4, 0, "This Week", curses.A_BOLD)
+    stdscr.addstr(5, 0, str(stat[0]) + " Total: " + str(sum(stat[0])), curses.A_BOLD)
+    stdscr.addstr(6, 0, "Last Four Weeks (avg)", curses.A_BOLD)
+    stdscr.addstr(7, 0, str(stat[1]) + " Total: " + str(sum(stat[1])), curses.A_BOLD)
 
 def main(stdscr):
     '''Main function'''
     skip_prompt = False
     will_update_record = False
-    # stdscr = curses.initscr()
     curses.noecho()
     curses.cbreak()
     stdscr.keypad(1)
     curses.curs_set(0)
 
+    cache_var = [] # cache current variables (to quickly redraw screen)
     thiswk_stat = [] # this week
     last4k_stat = []
     session_num = 1
@@ -114,20 +120,21 @@ def main(stdscr):
             if will_update_record:
                 thiswk_stat, last4k_stat = update_record(WORK_MIN)
                 will_update_record = False
-            render_alltext(stdscr, WORK_MIN, sec_left, session_num, [thiswk_stat, last4k_stat])
+            cache_var = [WORK_MIN, sec_left, session_num, [thiswk_stat, last4k_stat]]
+            render_alltext(stdscr, *cache_var)
             if not skip_prompt:
                 ans = stdscr.getch()
             if ans == ord('s'):
                 if sec_left:
                     sec_left, session_num, skip_prompt, will_update_record = \
-                        start_session(stdscr, sec_left, session_num)
+                        start_session(stdscr, sec_left, session_num, cache_var)
             elif ans == ord('q'):
                 break
+            elif ans == curses.KEY_RESIZE:
+                stdscr.clear()
+                render_alltext(stdscr, WORK_MIN, sec_left, session_num, [thiswk_stat, last4k_stat])
             elif ans == 410: # return value from zenity
                 pass
-            else:
-                stdscr.addstr(0, 0, "Current Session: " + get_session_info(session_num)[0] + \
-                        " - Invalid Input!", curses.A_BOLD)
     finally:
         stdscr.keypad(0)
         curses.echo()
@@ -163,6 +170,5 @@ try:
 except ValueError:
     print(RECORD_PATH + " is not a valid JSON. At least try to make it {}.")
     sys.exit()
-
 if __name__ == '__main__':
     curses.wrapper(main)
