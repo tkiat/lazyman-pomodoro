@@ -38,10 +38,10 @@ def update_record(minutes):
 
 def get_session_info(num):
     '''Get the type and length of the session
-    one period has 9 sessions: w > b > w > b > w > b > w > b > lb'''
-    if num % 9 in [1, 3, 5, 7]:
+    one period has 8 sessions: w > b > w > b > w > b > w > lb'''
+    if num % 8 in [1, 3, 5, 7]:
         return ["Work", WORK_MIN * 60]
-    if num % 9 in [2, 4, 6, 8]:
+    if num % 8 in [2, 4, 6]:
         return ["Break", BREAK_MIN * 60]
     return ["Long Break", LONGBREAK_MIN * 60]
 
@@ -76,7 +76,7 @@ def start_session(stdscr, sec_remaining, session, cache):
         return get_session_info(session + 1)[1], session + 1, will_skip_prompt, True
     except KeyboardInterrupt:
         # save progress if working else skip
-        if session % 9 in [1, 3, 5, 7]:
+        if session % 8 in [1, 3, 5, 7]:
             stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(sec_remaining) + \
                     ' (Pause)', curses.A_BOLD)
             return sec_remaining, session, False, False
@@ -84,20 +84,21 @@ def start_session(stdscr, sec_remaining, session, cache):
 
 def return_progress(session):
     '''Return progress string with marker.'''
-    marker = "(*)"
-    progress = "w - b - w - b - w - b - w - b - lb"
-    marker_index = 4 * (session - 1) + 1 if session % 9 != 0 else len(progress)
-    return progress[:marker_index] + marker + progress[marker_index:]
+    progress = "w - b - w - b - w - b - w - lb"
+    index_left = 4 * ((session - 1) % 8)
+    index_right = index_left + (0 if session % 8 != 0 else 1)
+    return progress[:index_left] + '[' + progress[index_left:index_right + 1] + ']' + \
+            progress[index_right + 1:]
 
 def render_alltext(stdscr, session_len, remaining, session, stat):
     '''Render everyting onto the screen.'''
     stdscr.addstr(0, 0, return_progress(session), curses.A_BOLD)
     stdscr.addstr(1, 0, "Time Left: " + sec_to_hhmmss(remaining), curses.A_BOLD)
     stdscr.addstr(2, 0, "Press s to Start, q to Quit", curses.A_BOLD)
-    stdscr.addstr(3, 0, "# Sessions (Mon-Sun, " + str(session_len) + " Mins Each)", curses.A_BOLD)
-    stdscr.addstr(4, 0, "This Week", curses.A_BOLD)
+    stdscr.addstr(3, 0, "--------------------------------------------------", curses.A_BOLD)
+    stdscr.addstr(4, 0, "This Week (Mon-Sun, " + str(session_len) + " Mins Each)", curses.A_BOLD)
     stdscr.addstr(5, 0, str(stat[0]) + " Total: " + str(sum(stat[0])), curses.A_BOLD)
-    stdscr.addstr(6, 0, "Last Four Weeks (avg)", curses.A_BOLD)
+    stdscr.addstr(6, 0, "Last Four Weeks (Weekly Average)", curses.A_BOLD)
     stdscr.addstr(7, 0, str(stat[1]) + " Total: " + str(sum(stat[1])), curses.A_BOLD)
 
 def main(stdscr):
