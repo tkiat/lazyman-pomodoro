@@ -56,7 +56,8 @@ def start_session(stdscr, sec_remaining, session, cache):
     return sec_left, session_num, skip_prompt, will_update_record'''
     # height, width = stdscr.getmaxyx()
     try:
-        is_working = bool(get_session_info(session)[1] == WORK_MIN * 60)
+        # is_working = bool(get_session_info(session)[1] == WORK_MIN * 60)
+        is_working = bool(session % 8 in [1, 3, 5, 7])
         stdscr.refresh()
         while sec_remaining > 0:
             if sec_remaining % 5 == 0: # refresh every 5 seconds
@@ -73,7 +74,8 @@ def start_session(stdscr, sec_remaining, session, cache):
         cur_session = "Break" if is_working else "Work"
         will_skip_prompt = not os.system(f"zenity --question --ellipsize --title= 'Session Ends!' \
                 --text='Do you want to start {cur_session} session now?' 2>/dev/null")
-        return get_session_info(session + 1)[1], session + 1, will_skip_prompt, True
+        return get_session_info(session + 1)[1], session + 1, \
+                will_skip_prompt, bool(is_working)
     except KeyboardInterrupt:
         # save progress if working else skip
         if session % 8 in [1, 3, 5, 7]:
@@ -97,9 +99,9 @@ def render_alltext(stdscr, session_len, remaining, session, stat):
     stdscr.addstr(2, 0, "Press s to Start, q to Quit", curses.A_BOLD)
     stdscr.addstr(3, 0, "--------------------------------------------------", curses.A_BOLD)
     stdscr.addstr(4, 0, "This Week (Mon-Sun, " + str(session_len) + " Mins Each)", curses.A_BOLD)
-    stdscr.addstr(5, 0, str(stat[0]) + " Total: " + str(sum(stat[0])), curses.A_BOLD)
+    stdscr.addstr(5, 0, str(stat[0]) + " Total: " + str(round(sum(stat[0]), 1)), curses.A_BOLD)
     stdscr.addstr(6, 0, "Last Four Weeks (Weekly Average)", curses.A_BOLD)
-    stdscr.addstr(7, 0, str(stat[1]) + " Total: " + str(sum(stat[1])), curses.A_BOLD)
+    stdscr.addstr(7, 0, str(stat[1]) + " Total: " + str(round(sum(stat[1]), 1)), curses.A_BOLD)
 
 def main(stdscr):
     '''Main function'''
